@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -39,6 +40,10 @@ var (
 	}
 	envErrorRate = os.Getenv("ERROR_RATE")
 	envLatency   = os.Getenv("LATENCY")
+
+	port      = os.Getenv("PORT")
+	tlsConfig tls.Config
+	certPath  = os.Getenv("CERT_PATH")
 )
 
 func main() {
@@ -47,7 +52,8 @@ func main() {
 		terminationDelay int
 		numCPUBurn       string
 	)
-	flag.StringVar(&listenAddr, "listen-addr", ":8080", "server listen address")
+
+	flag.StringVar(&listenAddr, "listen-addr", ":"+port, "server listen address")
 	flag.IntVar(&terminationDelay, "termination-delay", defaultTerminationDelay, "termination delay in seconds")
 	flag.StringVar(&numCPUBurn, "cpu-burn", "", "burn specified number of cpus (number or 'all')")
 	flag.Parse()
@@ -58,9 +64,26 @@ func main() {
 	router.Handle("/", http.StripPrefix("/", http.FileServer(http.Dir("./"))))
 	router.HandleFunc("/color", getColor)
 
+	if port == "8443" {
+		cer, err := tls.LoadX509KeyPair(certPath+"tls.crt", certPath+"tls.key")
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		tlsConfig.MinVersion = tls.VersionTLS12
+		tlsConfig.MaxVersion = tls.VersionTLS12
+		tlsConfig = tls.Config{Certificates: []tls.Certificate{cer}}
+		if err != nil {
+			log.Println(err)
+			return
+		}
+	}
+
 	server := &http.Server{
-		Addr:    listenAddr,
-		Handler: router,
+		Addr:      listenAddr,
+		Handler:   router,
+		TLSConfig: &tlsConfig,
 	}
 
 	done := make(chan bool)

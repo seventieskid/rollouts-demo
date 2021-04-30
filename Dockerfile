@@ -1,4 +1,4 @@
-FROM golang:1.13 as build
+FROM golang:1.16 as build
 WORKDIR /go/src/app
 COPY . .
 RUN make
@@ -18,4 +18,8 @@ ENV ERROR_RATE=${ERROR_RATE}
 ARG LATENCY
 ENV LATENCY=${LATENCY}
 
+ENV CERT_PATH="/etc/ssl/certs/"
+ENV PORT=8080
+EXPOSE 8080 8080
+EXPOSE 8443 8443
 ENTRYPOINT [ "/rollouts-demo" ]
